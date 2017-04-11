@@ -7,10 +7,23 @@
 
 using namespace std;
 
+struct in_put 
+{
+	unsigned long long address;
+	unsigned int instr; // Load or Store
+};
+
+struct out_put
+{
+	unsigned long long cache_hits; //use index to tell which predictor
+};
+
 class cacheSim
 {
 	private:
 		unsigned long long num_accesses;
+		vector<in_put> input; 
+		vector<out_put> output; 
 
 	public:
 		void read_file(string filename);
@@ -39,21 +52,22 @@ void Predictors::read_file(string filename) //trace input
 		exit(404); //file not found
 	}
 
-	while(infile >> hex >> address >> behavior)
+	while(infile >> behavior >> hex >> address)
 	{
 		num_accesses++;
 
-		stringstream ss; //string builder
 		in_put temp;
 
-		if (behavior == "T") {
-			temp.prediction = 1; 
-		} else if (behavior == "NT") {
-			temp.prediction = 0;
-		} else {
-			cerr << "Undefined mem instruction input.\n";
-			exit(1); //abort
-		}
+		stringstream ss; //string builder
+
+		address = address.substr(2); //last two counter bits
+		ss << address;
+		ss >> hex >> temp.address; 
+
+		if(behavior == "L") 
+			temp.instr = 1; 
+		if(behavior == "S")
+			temp.instr = 0; 
 
 		input.push_back(temp); //store values
 	}
@@ -80,4 +94,12 @@ void cacheSim::write_file(string filename) //output.txt
 
 	outfile << endl;
 	outfile.close();
+}
+
+//Assume that each cache line has a size of 32 bytes 
+//and model the caches sized at 1KB, 4KB, 16KB and 32KB
+
+void cacheSim::direct_mapped()
+{
+
 }
