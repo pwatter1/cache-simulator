@@ -15,7 +15,7 @@ struct in_put
 
 struct out_put
 {
-	unsigned long long cache_hits; //use index to tell which predictor
+	unsigned long long cache_hits; // memory address targeted by the instruction
 };
 
 class cacheSim
@@ -86,10 +86,7 @@ void cacheSim::write_file(string filename) //output.txt
 
 	for(unsigned long long i = 0; i < 26; i++) //loop through output vector
 	{
-		outfile << output[i].num_correct << "," << num_branches << "; ";
-		
-		if(i == 0 || i == 1 || i == 8 || i == 15 || i == 24)
-			outfile << endl; //seperate based on predictor
+		//stuff
 	}
 
 	outfile << endl;
@@ -101,5 +98,21 @@ void cacheSim::write_file(string filename) //output.txt
 
 void cacheSim::direct_mapped()
 {
+	//initialize DMC 1KB
+	int cacheLineDirect1KB = 32;
+	int indexDirect1KB = 0;
+	unsigned long long tagDirect1KB = 0;
+	unsigned long long *directCache1KB = new unsigned long long[32];
+	for(int i = 0; i < 32; i++)
+		directCache1KB[i] = 0;
+	
+	// initialization for direct mapped cache 4KB
+	int cacheLineDirect4KB = 128;
+	int indexDirect4KB = 0;
+	unsigned long long tagDirect4KB = 0;
+	unsigned long long *directCache4KB = new unsigned long long[128];
+	for (int i=0; i<128; i++) {
+		directCache4KB[i] = 0;
+  	} 
 
 }
