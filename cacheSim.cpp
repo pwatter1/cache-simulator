@@ -29,7 +29,7 @@ class cacheSim
 		void read_file(string filename);
 		void write_file(string filename);
 
-		void direct_mapped();
+		void direct_mapped(int size);
 		void set_associative(); //SAC
 		void fully_associative();
 
@@ -100,7 +100,7 @@ void cacheSim::direct_mapped(int size)
 {	
 	int cacheLine = size;
 	int index = 0;
-	unsigned long long hit = 0;
+	unsigned long long hit =
 	unsigned long long tag = 0;
 	unsigned long long *cache = new unsigned long long[cacheLine];
 	
