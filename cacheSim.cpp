@@ -38,10 +38,8 @@ class cacheSim
 		void direct_mapped(int size);
 		void set_associative(); //SAC
 		void fully_associative();
-
 		void SAC_no_alloc_write_miss();
 		void SAC_nextline_prefetch();
-
 		void prefetch_on_a_miss();
 };
 
@@ -68,9 +66,6 @@ void cacheSim::read_file(string filename) //trace input
 		ss << address;
 		ss >> hex >> temp.address; 
 
-
-		//behavior = str.at(0);
-
 		if(behavior == "L") 
 			temp.instr = 1; 
 		if(behavior == "S")
@@ -91,15 +86,11 @@ void cacheSim::write_file(string filename) //output.txt
 		exit(1); //file not found
 	}
 
-	//for(unsigned long long i = 0; i < 4; i++)
-	//	outfile << output[i].cache_hits << "," << num_accesses << "; ";
-
-	
-	for(unsigned long long i = 0; i < 23; i++) //loop through output vector
+	for(unsigned long long i = 0; i < 22; i++) //loop through output vector
 	{
 		outfile << output[i].cache_hits << "," << num_accesses << "; ";
 		
-		if(i == 4 || i == 8 || i == 9 || i == 10 || i == 14 || i == 18 || i == 22)
+		if(i == 3 || i == 7 || i == 8 || i == 9 || i == 13 || i == 17 || i == 21)
 			outfile << endl; //seperate based on cache type
 	}
 	
@@ -122,6 +113,37 @@ void cacheSim::direct_mapped(int size)
 		cache[i] = 0;
 
 	for(unsigned long long i = 0; i < input.size(); i++)
+	{
+		index = (input[i].address >> 5) % cacheLine; //block address MOD # of blocks in cache
+	    tag = input[i].address >> ((unsigned long long)(log2(cacheLine)) + 5); //which instruction in block
+
+	    if(cache[index] == tag)
+	        hits++;
+	    else
+	        cache[index] = tag; //miss++;
+	}
+
+    out_put temp;
+    temp.cache_hits = hits;
+    output.push_back(temp);
+}
+
+//Assume that the cache line size is 32 bytes. 
+//Model a 16KB cache with associativity of 2, 4, 8 and 16. 
+//Assume that the least recently used (LRU) replacement policy is implemented.
+
+void cacheSim::set_associative(int assoc)
+{
+	int cacheLine = (16384/32); //cache model size / cache line size
+	int index = 0;
+	unsigned long long hits = 0;
+	unsigned long long tag = 0;
+	unsigned long long *cache = new unsigned long long[16384/32]; //cache model size / cache line size
+	
+	for(int i = 0; i < (16384/32; i++) //set all zero
+		cache[i] = 0;
+
+	for(unsigned long long i = 0; i < input.size(); i++) //loop through all input file instructions
 	{
 		index = (input[i].address >> 5) % cacheLine;
 	    tag = input[i].address >> ((unsigned long long)(log2(cacheLine)) + 5);
@@ -148,12 +170,15 @@ int main(int argc, char **argv)
 
 	sim.read_file(argv[1]);
 
-	int arr[4] = {1024, 4096, 16384, 32768}; //1KB 4KB 16KB 32KB 
+	int DMSize[4] = {1024, 4096, 16384, 32768}; //1KB 4KB 16KB 32KB 
+	int SACAssociativity[4] = {2, 4, 8, 16};
 
-	for(int i = 0; i < 5; i++)
-		sim.direct_mapped(arr[i]);
+	for(int i = 0; i < 4; i++)
+		sim.direct_mapped(DMSize[i]);
 
-	//sim.set_associative(); 
+	for(int i = 0; i < 4; i++)
+		sim.set_associative(SACAssociativity[i]);
+
 	//sim.fully_associative();
 
 	//sim.SAC_no_alloc_write_miss();
