@@ -1,3 +1,8 @@
+//Patrick Watters
+//April 12, 2017
+//CS320 Project 2
+
+
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -60,7 +65,9 @@ void cacheSim::read_file(string filename) //trace input
 		in_put temp;
 
 		stringstream ss;
-		ss >> hex >> address >> temp.address; 
+		ss << address;
+		ss >> hex >> temp.address; 
+
 
 		//behavior = str.at(0);
 
@@ -105,24 +112,25 @@ void cacheSim::write_file(string filename) //output.txt
 
 void cacheSim::direct_mapped(int size)
 {	
-	int cacheLine = size;
+	int cacheLine = (size / 32);
 	int index = 0;
 	unsigned long long hits = 0;
 	unsigned long long tag = 0;
-	unsigned long long *cache = new unsigned long long[cacheLine];
+	unsigned long long *cache = new unsigned long long[size / 32];
 	
-	for(int i = 0; i < cacheLine; i++) //set all zero
+	for(int i = 0; i < (size/32); i++) //set all zero
 		cache[i] = 0;
-  	
-  	in_put alt; 
 
-  	index = (alt.address >> 5) % cacheLine;
-    tag = alt.address >> ((unsigned long long)(log2(cacheLine)) + 5);
+	for(unsigned long long i = 0; i < input.size(); i++)
+	{
+		index = (input[i].address >> 5) % cacheLine;
+	    tag = input[i].address >> ((unsigned long long)(log2(cacheLine)) + 5);
 
-    if(cache[index] == tag)
-        hits++;
-    else
-        cache[index] = tag; //miss++;
+	    if(cache[index] == tag)
+	        hits++;
+	    else
+	        cache[index] = tag; //miss++;
+	}
 
     out_put temp;
     temp.cache_hits = hits;
@@ -140,7 +148,7 @@ int main(int argc, char **argv)
 
 	sim.read_file(argv[1]);
 
-	int arr[4] = {32, 128, 512, 1024};
+	int arr[4] = {1024, 4096, 16384, 32768}; //1KB 4KB 16KB 32KB 
 
 	for(int i = 0; i < 5; i++)
 		sim.direct_mapped(arr[i]);
