@@ -82,6 +82,10 @@ void cacheSim::write_file(string filename) //output.txt
 		exit(1); //file not found
 	}
 
+	//for(unsigned long long i = 0; i < 4; i++)
+	//	outfile << output[i].cache_hits << "," << num_accesses << "; ";
+
+	
 	for(unsigned long long i = 0; i < 23; i++) //loop through output vector
 	{
 		outfile << output[i].cache_hits << "," << num_accesses << "; ";
@@ -89,7 +93,7 @@ void cacheSim::write_file(string filename) //output.txt
 		if(i == 4 || i == 8 || i == 9 || i == 10 || i == 14 || i == 18 || i == 22)
 			outfile << endl; //seperate based on cache type
 	}
-
+	
 	outfile << endl;
 	outfile.close();
 }
@@ -120,10 +124,8 @@ void cacheSim::direct_mapped(int size)
 
     out_put temp;
     temp.cache_hits = hits;
+    output.push_back(temp);
 }
-
-
-
 
 int main(int argc, char **argv)
 {
