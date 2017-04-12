@@ -96,23 +96,25 @@ void cacheSim::write_file(string filename) //output.txt
 //Assume that each cache line has a size of 32 bytes 
 //and model the caches sized at 1KB, 4KB, 16KB and 32KB
 
-void cacheSim::direct_mapped()
-{
-	//initialize DMC 1KB
-	int cacheLineDirect1KB = 32;
-	int indexDirect1KB = 0;
-	unsigned long long tagDirect1KB = 0;
-	unsigned long long *directCache1KB = new unsigned long long[32];
-	for(int i = 0; i < 32; i++)
-		directCache1KB[i] = 0;
+void cacheSim::direct_mapped(int size)
+{	
+	int cacheLine = size;
+	int index = 0;
+	unsigned long long hit = 0;
+	unsigned long long tag = 0;
+	unsigned long long *cache = new unsigned long long[cacheLine];
 	
-	// initialization for direct mapped cache 4KB
-	int cacheLineDirect4KB = 128;
-	int indexDirect4KB = 0;
-	unsigned long long tagDirect4KB = 0;
-	unsigned long long *directCache4KB = new unsigned long long[128];
-	for (int i=0; i<128; i++) {
-		directCache4KB[i] = 0;
-  	} 
+	for(int i=0; i<cacheLine; i++) //set all zero
+		cache[i] = 0;
+  	
+  	index = (addr >> 5) % cacheLine;
+    tag = addr >> ((unsigned long long)(log2(cacheLine)) + 5);
 
+    if(cache[index] == tag)
+        hit++;
+    else
+        cache[index] = tag; //miss++;
+
+    output temp;
+    temp.cache_hits = hit;
 }
