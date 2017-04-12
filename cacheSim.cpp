@@ -44,7 +44,7 @@ void cacheSim::read_file(string filename) //trace input
 {
 	string address;
 	string behavior;
-	int num_accesses = 0;
+	num_accesses = 0;
 
 	ifstream infile(filename.c_str());
 
@@ -61,6 +61,8 @@ void cacheSim::read_file(string filename) //trace input
 
 		stringstream ss;
 		ss >> hex >> address >> temp.address; 
+
+		//behavior = str.at(0);
 
 		if(behavior == "L") 
 			temp.instr = 1; 
@@ -140,7 +142,7 @@ int main(int argc, char **argv)
 
 	int arr[4] = {32, 128, 512, 1024};
 
-	for(int i = 0; i < 4; i++)
+	for(int i = 0; i < 5; i++)
 		sim.direct_mapped(arr[i]);
 
 	//sim.set_associative(); 
