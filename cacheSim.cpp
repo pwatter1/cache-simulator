@@ -140,10 +140,10 @@ void cacheSim::set_associative(int assoc)
 	unsigned long long tag = 0;
 	unsigned long long *cache = new unsigned long long[16384/32]; //cache model size / cache line size
 	
-	for(int i = 0; i < (16384/32; i++) //set all zero
+	for(int i = 0; i < (16384/32); i++) //set all zero
 		cache[i] = 0;
 
-	for(unsigned long long i = 0; i < input.size(); i++) //loop through all input file instructions
+	for(unsigned long long i = 0; i < input.size(); i++) 
 	{
 		index = (input[i].address >> 5) % cacheLine;
 	    tag = input[i].address >> ((unsigned long long)(log2(cacheLine)) + 5);
