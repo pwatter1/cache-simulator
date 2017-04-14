@@ -98,29 +98,29 @@ void cacheSim::write_file(string filename) //output.txt
 	outfile.close();
 }
 
-//Assume that each cache line has a size of 32 bytes 
+//Assume that each cache line (block) has a size of 32 bytes 
 //and model the caches sized at 1KB, 4KB, 16KB and 32KB
 
 void cacheSim::direct_mapped(int size)
 {	
-	int cacheLine = (size / 32);
 	int index = 0;
 	unsigned long long hits = 0;
 	unsigned long long tag = 0;
-	unsigned long long *cache = new unsigned long long[size / 32];
+	int cacheLine = (size / 32); //# of blocks in cache
+	unsigned long long *cache = new unsigned long long[size / 32]; 
 	
-	for(int i = 0; i < (size/32); i++) //set all zero
+	for(int i = 0; i < (size/32); i++) 
 		cache[i] = 0;
 
 	for(unsigned long long i = 0; i < input.size(); i++)
 	{
-		index = (input[i].address >> 5) % cacheLine; //block address MOD # of blocks in cache
+		index = (input[i].address >> 5) % cacheLine; //block address MOD (# of blocks in cache) = where in cache
 	    tag = input[i].address >> ((unsigned long long)(log2(cacheLine)) + 5); //which instruction in block
 
 	    if(cache[index] == tag)
 	        hits++;
 	    else
-	        cache[index] = tag; //miss++;
+	        cache[index] = tag; ////miss++; -> block replacement
 	}
 
     out_put temp;
@@ -134,10 +134,10 @@ void cacheSim::direct_mapped(int size)
 
 void cacheSim::set_associative(int assoc)
 {
-	int cacheLine = (16384/32); //cache model size / cache line size
 	int index = 0;
 	unsigned long long hits = 0;
 	unsigned long long tag = 0;
+	int cacheLine = (16384/32); 
 	unsigned long long *cache = new unsigned long long[16384/32]; //cache model size / cache line size
 	
 	for(int i = 0; i < (16384/32); i++) //set all zero
