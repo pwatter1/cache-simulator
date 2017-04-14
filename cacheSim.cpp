@@ -37,7 +37,9 @@ class cacheSim
 
 		void direct_mapped(int size);
 		void set_associative(int assoc); //SAC
-		void fully_associative();
+		
+		void fully_associative_LRU();
+		void fully_associative_HotCold();
 		void SAC_no_alloc_write_miss();
 		void SAC_nextline_prefetch();
 		void prefetch_on_a_miss();
@@ -206,9 +208,136 @@ void cacheSim::set_associative(int assoc)
 //Assume that each cache line is 32 bytes and the total cache size is 16KB. 
 //Implement Least Recently Used (LRU) and hot-cold LRU approximation policies.
 
-void cacheSim::fully_associative()
+void cacheSim::fully_associative_LRU()
 {
+	unsigned long long hits = 0;
+	unsigned long long tag = 0;
+	int num_blocks = ((16384/32)); //cache size / block size = # 512 cache lines/blocks
+	unsigned long long **cache = new unsigned long long *[1];
+	unsigned long long **LRU = new unsigned long long *[1];
 
+	for(int i = 0; i < 1; i++)
+	{
+		LRU[i] = new unsigned long long [num_blocks];
+		cache[i] = new unsigned long long [num_blocks];
+	} 
+
+	for(int i = 0; i < 1; i++)
+	{
+		for(int j = 0; j < 512; j++)
+		{
+			LRU[i][j] = j; 
+			cache[i][j] = -1; 
+		}
+	}
+
+	for(unsigned long long i = 0; i < input.size(); i++) 
+	{
+		int index = 0;
+		bool found = false;
+		tag = input[i].address >> 5;
+
+		for(int i = 0; i < num_blocks; i++)
+		{	
+			if(cache[0][i] == tag){
+				found = true;
+				index = i;
+			}
+		}
+		if(found)
+		{
+			int LRUindex = -1;
+			for(int i = 0; i < num_blocks; i++)
+			{
+				if(LRU[0][i] == index)
+					LRUindex = i;
+			}
+			for(int i = 0; i < LRUindex; i++)
+				LRU[0][LRUindex-i] = LRU[0][(LRUindex-1)-i];
+
+			LRU[0][0] = index;
+			hits++;
+		}
+		else
+		{
+			unsigned long long temp = LRU[0][num_blocks-1];
+			for(int i = 0; i < num_blocks; i++)
+				LRU[0][num_blocks-i] = LRU[0][(num_blocks-1)-i];
+
+			LRU[0][0] = temp;
+			cache[0][LRU[0][0]] = tag;
+		}
+	}
+
+	out_put temp;
+    temp.cache_hits = hits;
+    output.push_back(temp);
+}
+
+void cacheSim::fully_associative_HotCold()
+{
+	unsigned long long hits = 0;
+	unsigned long long tag = 0;
+	int num_blocks = ((16384/32)); //cache size / block size = # 512 cache lines/blocks
+	unsigned long long **cache = new unsigned long long *[1];
+	unsigned long long **LRU = new unsigned long long *[1];
+
+	for(int i = 0; i < 1; i++)
+	{
+		LRU[i] = new unsigned long long [num_blocks];
+		cache[i] = new unsigned long long [num_blocks];
+	} 
+
+	for(int i = 0; i < 1; i++)
+	{
+		for(int j = 0; j < 512; j++)
+		{
+			LRU[i][j] = j; 
+			cache[i][j] = -1; 
+		}
+	}
+
+	for(unsigned long long i = 0; i < input.size(); i++) 
+	{
+		int index = 0;
+		bool found = false;
+		tag = input[i].address >> 5;
+
+		for(int i = 0; i < num_blocks; i++)
+		{	
+			if(cache[0][i] == tag){
+				found = true;
+				index = i;
+			}
+		}
+		if(found)
+		{
+			int LRUindex = -1;
+			for(int i = 0; i < num_blocks; i++)
+			{
+				if(LRU[0][i] == index)
+					LRUindex = i;
+			}
+			for(int i = 0; i < LRUindex; i++)
+				LRU[0][LRUindex-i] = LRU[0][(LRUindex-1)-i];
+
+			LRU[0][0] = index;
+			hits++;
+		}
+		else
+		{
+			unsigned long long temp = LRU[0][num_blocks-1];
+			for(int i = 0; i < num_blocks; i++)
+				LRU[0][num_blocks-i] = LRU[0][(num_blocks-1)-i];
+
+			LRU[0][0] = temp;
+			cache[0][LRU[0][0]] = tag;
+		}
+	}
+
+	out_put temp;
+    temp.cache_hits = hits;
+    output.push_back(temp);
 }
 
 int main(int argc, char **argv)
@@ -231,7 +360,9 @@ int main(int argc, char **argv)
 	for(int i = 0; i < 4; i++)
 		sim.set_associative(SACAssociativity[i]);
 
-	//sim.fully_associative();
+	sim.fully_associative_LRU();
+
+	//sim.fully_associative_HotCold();
 
 	//sim.SAC_no_alloc_write_miss();
 	//sim.SAC_nextline_prefetch();
