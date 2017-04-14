@@ -144,7 +144,7 @@ void cacheSim::set_associative(int assoc)
 	unsigned long long **cache = new unsigned long long *[num_sets]; 
 	unsigned long long **LRU = new unsigned long long *[num_sets]; 
 
-	for(int i = 0; i < num_blocks; i++)
+	for(int i = 0; i < num_sets; i++)
 	{
 		LRU[i] = new unsigned long long [assoc];
 		cache[i] = new unsigned long long [assoc];
@@ -162,28 +162,28 @@ void cacheSim::set_associative(int assoc)
 	for(unsigned long long i = 0; i < input.size(); i++) 
 	{
 		set = (input[i].address >> 5) % num_sets;
-	    tag = input[i].address >> ((unsigned long long)(log2(num_sets)) + 5);
+	    tag = input[i].address >> ((unsigned long long)log2(num_sets) + 5);
 
 	    for(int i = 0; i < assoc; i++)
 	    {
 	    	if(cache[set][i] == tag)
+	    	{
 	        	where_in_set = i;
 	        	found = true;
+			}
 		}
 
 		if(found)
 		{
 			int LRUindex = -1;
 			for(int i = 0; i < assoc; i++) //check where in LRU
-			{
-				if(LRU[set][i] = where_in_set)
+				if(LRU[set][i] == where_in_set)
 					LRUindex = i;
-			}
+			
 			//shift LRU over, update most recently used
-			for(int i = 0; i < LRUindex; ++i)
-			{
-				LRU[set][LRUindex-i] = LRU[set][(LRUindex-1)-1];
-			}
+			for(int i = 0; i < LRUindex; i++)
+				LRU[set][LRUindex-i] = LRU[set][(LRUindex-1)-i];
+			
 			LRU[set][0] = where_in_set;
 			hits++;
 		}
@@ -201,6 +201,14 @@ void cacheSim::set_associative(int assoc)
     out_put temp;
     temp.cache_hits = hits;
     output.push_back(temp);
+}
+
+//Assume that each cache line is 32 bytes and the total cache size is 16KB. 
+//Implement Least Recently Used (LRU) and hot-cold LRU approximation policies.
+
+void cacheSim::fully_associative()
+{
+
 }
 
 int main(int argc, char **argv)
