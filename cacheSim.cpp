@@ -36,7 +36,7 @@ class cacheSim
 		void write_file(string filename);
 
 		void direct_mapped(int size);
-		void set_associative(); //SAC
+		void set_associative(int assoc); //SAC
 		void fully_associative();
 		void SAC_no_alloc_write_miss();
 		void SAC_nextline_prefetch();
@@ -106,21 +106,21 @@ void cacheSim::direct_mapped(int size)
 	int index = 0;
 	unsigned long long hits = 0;
 	unsigned long long tag = 0;
-	int cacheLine = (size / 32); //# of blocks in cache
-	unsigned long long *cache = new unsigned long long[size / 32]; 
+	int num_blocks = (size / 32); //cache size / block size = cache lines/blocks
+	unsigned long long *cache = new unsigned long long[num_blocks]; 
 	
 	for(int i = 0; i < (size/32); i++) 
 		cache[i] = 0;
 
 	for(unsigned long long i = 0; i < input.size(); i++)
 	{
-		index = (input[i].address >> 5) % cacheLine; //block address MOD (# of blocks in cache) = where in cache
-	    tag = input[i].address >> ((unsigned long long)(log2(cacheLine)) + 5); //which instruction in block
+		index = (input[i].address >> 5) % num_blocks; //block address MOD (# of blocks in cache) = where in cache
+	    tag = input[i].address >> ((unsigned long long)(log2(num_blocks)) + 5); //identifier for byte in block
 
-	    if(cache[index] == tag)
-	        hits++;
+	    if(cache[index] == tag) 
+	        hits++; //desired byte
 	    else
-	        cache[index] = tag; ////miss++; -> block replacement
+	        cache[index] = tag; //miss++; -> block replacement
 	}
 
     out_put temp;
@@ -128,30 +128,74 @@ void cacheSim::direct_mapped(int size)
     output.push_back(temp);
 }
 
-//Assume that the cache line size is 32 bytes. 
+//Assume that the cache line (block) size is 32 bytes. 
 //Model a 16KB cache with associativity of 2, 4, 8 and 16. 
 //Assume that the least recently used (LRU) replacement policy is implemented.
 
 void cacheSim::set_associative(int assoc)
 {
-	int index = 0;
+	int set = 0;
+	int where_in_set = 0;
+	bool found = false;
 	unsigned long long hits = 0;
 	unsigned long long tag = 0;
-	int cacheLine = (16384/32); 
-	unsigned long long *cache = new unsigned long long[16384/32]; //cache model size / cache line size
+	int num_blocks = ((16384/32)); //cache size / block size = cache lines/blocks
+	int num_sets = num_blocks / assoc;
+	unsigned long long **cache = new unsigned long long *[num_sets]; 
+	unsigned long long **LRU = new unsigned long long *[num_sets]; 
+
+	for(int i = 0; i < num_blocks; i++)
+	{
+		LRU[i] = new unsigned long long [assoc];
+		cache[i] = new unsigned long long [assoc];
+	}
 	
-	for(int i = 0; i < (16384/32); i++) //set all zero
-		cache[i] = 0;
+	for(int i = 0; i < num_sets; i++)
+	{
+		for(int j = 0; j < assoc; j++)
+		{
+			LRU[i][j] = j; //j
+			cache[i][j] = -1; //-1
+		}
+	}
 
 	for(unsigned long long i = 0; i < input.size(); i++) 
 	{
-		index = (input[i].address >> 5) % cacheLine;
-	    tag = input[i].address >> ((unsigned long long)(log2(cacheLine)) + 5);
+		set = (input[i].address >> 5) % num_sets;
+	    tag = input[i].address >> ((unsigned long long)(log2(num_sets)) + 5);
 
-	    if(cache[index] == tag)
-	        hits++;
-	    else
-	        cache[index] = tag; //miss++;
+	    for(int i = 0; i < assoc; i++)
+	    {
+	    	if(cache[set][i] == tag)
+	        	where_in_set = i;
+	        	found = true;
+		}
+
+		if(found)
+		{
+			int LRUindex = -1;
+			for(int i = 0; i < assoc; i++) //check where in LRU
+			{
+				if(LRU[set][i] = where_in_set)
+					LRUindex = i;
+			}
+			//shift LRU over, update most recently used
+			for(int i = 0; i < LRUindex; ++i)
+			{
+				LRU[set][LRUindex-i] = LRU[set][(LRUindex-1)-1];
+			}
+			LRU[set][0] = where_in_set;
+			hits++;
+		}
+		else
+		{
+			unsigned long long temp = LRU[set][assoc-1];
+			for(int i = 0; i < assoc; i++)
+				LRU[set][assoc-i] = LRU[set][(assoc-1)-i];
+
+			LRU[set][0] = temp;
+			cache[set][LRU[set][0]] = tag;
+		}
 	}
 
     out_put temp;
