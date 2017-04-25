@@ -8,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <deque>
 #include <stdlib.h>
 #include <math.h>
 
@@ -103,24 +104,25 @@ void cacheSim::write_file(string filename) //output.txt
 //Assume that each cache line (block) has a size of 32 bytes 
 //and model the caches sized at 1KB, 4KB, 16KB and 32KB
 
-void cacheSim::direct_mapped(int size)
+void cacheSim::direct_mapped(int modelSize)
 {	
 	int index = 0;
 	unsigned long long hits = 0;
 	unsigned long long tag = 0;
-	int num_blocks = (size / 32); //cache size / block size = cache lines/blocks
-	unsigned long long *cache = new unsigned long long[num_blocks]; 
+	int blockSize = 32;
+	int cacheSize = (modelSize / blockSize); //cache size / block size = cache lines/blocks
+	unsigned long long *cache = new unsigned long long[cacheSize]; 
 	
-	for(int i = 0; i < (size/32); i++) 
+	for(int i = 0; i < (cacheSize); i++) 
 		cache[i] = 0;
 
 	for(unsigned long long i = 0; i < input.size(); i++)
 	{
-		index = (input[i].address >> 5) % num_blocks; //block address MOD (# of blocks in cache) = where in cache
-	    tag = input[i].address >> ((unsigned long long)(log2(num_blocks)) + 5); //identifier for byte in block
+		index = (input[i].address >> 5) % cacheSize; //offset size 5 since 32 bits
+	    tag = input[i].address >> ((unsigned long long)(log2(cacheSize)) + 5); //identifier for byte in block
 
 	    if(cache[index] == tag) 
-	        hits++; //desired byte
+	        hits++; 
 	    else
 	        cache[index] = tag; //miss++; -> block replacement
 	}
@@ -136,67 +138,58 @@ void cacheSim::direct_mapped(int size)
 
 void cacheSim::set_associative(int assoc)
 {
-	int set = 0;
+	int index = 0; //set
 	int where_in_set = 0;
 	bool found = false;
-	unsigned long long hits = 0;
+	int hits = 0;
 	unsigned long long tag = 0;
-	int num_blocks = ((16384/32)); //cache size / block size = cache lines/blocks
-	int num_sets = num_blocks / assoc;
-	unsigned long long **cache = new unsigned long long *[num_sets]; 
-	unsigned long long **LRU = new unsigned long long *[num_sets]; 
+	unsigned long long index_bits = log2(cacheSize);
+	int blockSize = 32 * assoc; //cache size / block size = cache lines/blocks
+	int cacheSize = 512 / assoc; 
+	vector< deque<unsigned long long int> > cache(cacheSize);  
 
-	for(int i = 0; i < num_sets; i++)
+	for(int i = 0; i < cacheSize; i++)
 	{
-		LRU[i] = new unsigned long long [assoc];
-		cache[i] = new unsigned long long [assoc];
-	}
-	
-	for(int i = 0; i < num_sets; i++)
-	{
+		deque<unsigned long long int> LRU;
+		
 		for(int j = 0; j < assoc; j++)
-		{
-			LRU[i][j] = j; //j
-			cache[i][j] = -1; //-1
-		}
+			LRU.push_back(0);
+
+		cache.push_back(LRU);
 	}
 
 	for(unsigned long long i = 0; i < input.size(); i++) 
 	{
-		set = (input[i].address >> 5) % num_sets;
-	    tag = input[i].address >> ((unsigned long long)log2(num_sets) + 5);
+		index = (input[i].address >> 5) % cacheSize;
+	    tag = input[i].address >> (index_bits + 5);
 
 	    for(int i = 0; i < assoc; i++)
 	    {
-	    	if(cache[set][i] == tag)
+	    	if(cache[index][i] == tag)
 	    	{
-	        	where_in_set = i;
+	        	cache[index].erase(cache[index].begin()+i);
+	        	cache[index].push_front(tag);
+
 	        	found = true;
 			}
 		}
 
 		if(found)
 		{
-			int LRUindex = -1;
-			for(int i = 0; i < assoc; i++) //check where in LRU
-				if(LRU[set][i] == where_in_set)
-					LRUindex = i;
-			
-			//shift LRU over, update most recently used
-			for(int i = 0; i < LRUindex; i++)
-				LRU[set][LRUindex-i] = LRU[set][(LRUindex-1)-i];
-			
-			LRU[set][0] = where_in_set;
-			hits++;
+			hits++;			
 		}
 		else
 		{
-			unsigned long long temp = LRU[set][assoc-1];
-			for(int i = 0; i < assoc; i++)
-				LRU[set][assoc-i] = LRU[set][(assoc-1)-i];
+			cache[index].pop_back();
+			cache[index].push_front(tag);
+			/* unsigned long long temp = LRU[index][assoc-1];
 
-			LRU[set][0] = temp;
-			cache[set][LRU[set][0]] = tag;
+			for(int i = 0; i < assoc; i++)
+				LRU[index][assoc-i] = LRU[index][(assoc-1)-i];
+
+			LRU[index][0] = temp;
+			cache[index][LRU[index][0]] = tag;
+			*/
 		}
 	}
 
