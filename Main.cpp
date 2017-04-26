@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	cacheSim sim; //initialize object
+	cacheSim sim; //initialize obj
 
 	sim.read_file(argv[1]);
 
