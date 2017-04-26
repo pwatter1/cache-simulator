@@ -10,6 +10,7 @@
 #include <vector>
 #include <deque>
 #include <stdlib.h>
+#include <assert.h>
 #include <math.h>
 
 using namespace std;
@@ -42,7 +43,7 @@ class cacheSim
 		void fully_associative_LRU();
 		void fully_associative_HotCold();
 		void SAC_no_alloc_write_miss();
-		void SAC_nextline_prefetch();
+		void SAC_nextline_prefetch(int assoc);
 		void prefetch_on_a_miss();
 };
 
@@ -88,6 +89,9 @@ void cacheSim::write_file(string filename) //output.txt
 	{
 		exit(1); //file not found
 	}
+
+	//REMOVE THIS BEFORE SUBMITTING
+	outfile << "\n";
 
 	for(unsigned long long i = 0; i < 22; i++) //loop through output vector
 	{
@@ -140,56 +144,53 @@ void cacheSim::set_associative(int assoc)
 {
 	int index = 0; //set
 	int where_in_set = 0;
-	bool found = false;
 	int hits = 0;
+	bool found;
 	unsigned long long tag = 0;
-	unsigned long long index_bits = log2(cacheSize);
+	//unsigned long long index_bits = log2(cacheSize);
 	int blockSize = 32 * assoc; //cache size / block size = cache lines/blocks
 	int cacheSize = 512 / assoc; 
-	vector< deque<unsigned long long int> > cache(cacheSize);  
+	vector< deque<unsigned long long int> > cache;  
 
 	for(int i = 0; i < cacheSize; i++)
 	{
-		deque<unsigned long long int> LRU;
+		deque<unsigned long long int> line;
 		
 		for(int j = 0; j < assoc; j++)
-			LRU.push_back(0);
-
-		cache.push_back(LRU);
+			line.push_back(0);
+		
+		cache.push_back(line);
 	}
 
 	for(unsigned long long i = 0; i < input.size(); i++) 
 	{
-		index = (input[i].address >> 5) % cacheSize;
-	    tag = input[i].address >> (index_bits + 5);
+		index = (input[i].address >> 5) % (cacheSize);
+	    tag = input[i].address >> ((unsigned long long)(log2(cacheSize)) + 5);
 
+	  
+	    found = false;
 	    for(int i = 0; i < assoc; i++)
 	    {
 	    	if(cache[index][i] == tag)
 	    	{
+	    		//assert(*(cache[index].begin()+i) == cache[index][i] && cache[index][i] == tag);  
+	    		//remove
 	        	cache[index].erase(cache[index].begin()+i);
+	        	//push to front of lru
 	        	cache[index].push_front(tag);
-
+	        	//assert(cache[index].size() == assoc);
 	        	found = true;
 			}
 		}
-
-		if(found)
+		if(found == true)
 		{
-			hits++;			
+			hits++;
 		}
-		else
+		else if(found == false)
 		{
+			//not found, pop back oldest, insert at front
 			cache[index].pop_back();
 			cache[index].push_front(tag);
-			/* unsigned long long temp = LRU[index][assoc-1];
-
-			for(int i = 0; i < assoc; i++)
-				LRU[index][assoc-i] = LRU[index][(assoc-1)-i];
-
-			LRU[index][0] = temp;
-			cache[index][LRU[index][0]] = tag;
-			*/
 		}
 	}
 
@@ -267,70 +268,68 @@ void cacheSim::fully_associative_LRU()
     output.push_back(temp);
 }
 
-void cacheSim::fully_associative_HotCold()
+void cacheSim::SAC_nextline_prefetch(int assoc)
 {
-	unsigned long long hits = 0;
+	int index = 0; //set
+	int where_in_set = 0;
+	int hits = 0;
+	bool found;
 	unsigned long long tag = 0;
-	int num_blocks = ((16384/32)); //cache size / block size = # 512 cache lines/blocks
-	unsigned long long **cache = new unsigned long long *[1];
-	unsigned long long **LRU = new unsigned long long *[1];
+	int blockSize = 32 * assoc; //cache size / block size = cache lines/blocks
+	int cacheSize = 512 / assoc; 
+	vector< deque<unsigned long long int> > cache;  
 
-	for(int i = 0; i < 1; i++)
+	for(int i = 0; i < cacheSize; i++)
 	{
-		LRU[i] = new unsigned long long [num_blocks];
-		cache[i] = new unsigned long long [num_blocks];
-	} 
-
-	for(int i = 0; i < 1; i++)
-	{
-		for(int j = 0; j < 512; j++)
-		{
-			LRU[i][j] = j; 
-			cache[i][j] = -1; 
-		}
+		deque<unsigned long long int> line;
+		
+		for(int j = 0; j < assoc; j++)
+			line.push_back(0);
+		
+		cache.push_back(line);
 	}
 
 	for(unsigned long long i = 0; i < input.size(); i++) 
 	{
-		int index = 0;
-		bool found = false;
-		tag = input[i].address >> 5;
+		index = (input[i].address >> 5) % (cacheSize);
+	    tag = input[i].address >> ((unsigned long long)(log2(cacheSize)) + 5);
+	    unsigned long long nextAddress = input[i].address + 32;
+	    int nextIndex = (nextAddress >> 5) % (cacheSize);
+	    unsigned long long nextTag = nextAddress >> ((unsigned long long)(log2(cacheSize)) + 5);
+	    bool found = false;
 
-		for(int i = 0; i < num_blocks; i++)
-		{	
-			if(cache[0][i] == tag){
-				found = true;
-				index = i;
-			}
-		}
-		if(found)
-		{
-			int LRUindex = -1;
-			for(int i = 0; i < num_blocks; i++)
-			{
-				if(LRU[0][i] == index)
-					LRUindex = i;
-			}
-			for(int i = 0; i < LRUindex; i++)
-				LRU[0][LRUindex-i] = LRU[0][(LRUindex-1)-i];
+	    for(int i = 0; i < assoc; i++)
+	    {
+	    	if(cache[index][i] == tag)
+	    	{
+	    		cache[index].erase( cache[index].begin() + i);
+	    		cache[index].push_front(tag);
+	    	}
+	    }
+	    if(found) hits++;
+	    else if(found == false)
+	    {
+	    		cache[index].pop_back();
+	    		cache[index].push_front(tag);
+	    }
 
-			LRU[0][0] = index;
-			hits++;
-		}
-		else
-		{
-			unsigned long long temp = LRU[0][num_blocks-1];
-			for(int i = 0; i < num_blocks; i++)
-				LRU[0][num_blocks-i] = LRU[0][(num_blocks-1)-i];
-
-			LRU[0][0] = temp;
-			cache[0][LRU[0][0]] = tag;
-		}
+	    //start again with next prefetched
+	    found = false;
+	    for(int i = 0; i < assoc; i++)
+	    {
+	    	if(cache[nextIndex][i] == nextTag)
+	    	{
+	    		cache[nextIndex].erase( cache[nextIndex].begin() + i);
+	    		cache[nextIndex].push_front(nextTag);
+	    	}
+	    }
+	    if(found) hits++;
+	    else if(found == false)
+	    {
+	    		cache[nextIndex].pop_back();
+	    		cache[nextIndex].push_front(nextTag);
+	    }
 	}
-
-	out_put temp;
-    temp.cache_hits = hits;
-    output.push_back(temp);
 }
 
 int main(int argc, char **argv)
@@ -346,6 +345,7 @@ int main(int argc, char **argv)
 
 	int DMSize[4] = {1024, 4096, 16384, 32768}; //1KB 4KB 16KB 32KB 
 	int SACAssociativity[4] = {2, 4, 8, 16};
+	int NLPAssociativity[4] = {2, 4, 8, 16};
 
 	for(int i = 0; i < 4; i++)
 		sim.direct_mapped(DMSize[i]);
@@ -358,7 +358,9 @@ int main(int argc, char **argv)
 	//sim.fully_associative_HotCold();
 
 	//sim.SAC_no_alloc_write_miss();
-	//sim.SAC_nextline_prefetch();
+	
+	for(int i = 0; i < 4; i++)
+		sim.SAC_nextline_prefetch(NLPAssociativity[i]);
 
 	//sim.prefetch_on_a_miss();
 
