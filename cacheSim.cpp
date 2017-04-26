@@ -10,7 +10,6 @@
 #include <vector>
 #include <deque>
 #include <stdlib.h>
-#include <assert.h>
 #include <math.h>
 
 using namespace std;
@@ -42,8 +41,10 @@ class cacheSim
 		
 		void fully_associative_LRU();
 		void fully_associative_HotCold();
+		
 		void SAC_no_alloc_write_miss();
 		void SAC_nextline_prefetch(int assoc);
+		
 		void prefetch_on_a_miss();
 };
 
@@ -268,6 +269,8 @@ void cacheSim::fully_associative_LRU()
     output.push_back(temp);
 }
 
+//sim.fully_associative_HotCold();
+
 void cacheSim::SAC_nextline_prefetch(int assoc)
 {
 	int index = 0; //set
@@ -358,7 +361,7 @@ int main(int argc, char **argv)
 	//sim.fully_associative_HotCold();
 
 	//sim.SAC_no_alloc_write_miss();
-	
+
 	for(int i = 0; i < 4; i++)
 		sim.SAC_nextline_prefetch(NLPAssociativity[i]);
 
