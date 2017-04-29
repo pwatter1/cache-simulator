@@ -42,7 +42,7 @@ class cacheSim
 		void fully_associative_LRU();
 		void fully_associative_HotCold();
 		
-		void SAC_no_alloc_write_miss();
+		void SAC_no_alloc_write_miss(int assoc);
 		void SAC_nextline_prefetch(int assoc);
 		
 		void prefetch_on_a_miss();
@@ -172,12 +172,12 @@ void cacheSim::set_associative(int assoc)
 	    found = false;
 	    for(int i = 0; i < assoc; i++)
 	    {
-	    	if(cache_line_index[index][i] == tag)
+	    	if(cache[cache_line_index][i] == tag)
 	    	{
 	    		//remove
-	        	cache_line_index[index].erase(cache_line_index[index].begin()+i);
+	        	cache[cache_line_index].erase(cache[cache_line_index].begin()+i);
 	        	//push to front of lru
-	        	cache_line_index[index].push_front(tag);
+	        	cache[cache_line_index].push_front(tag);
 	        	found = true;
 			}
 		}
@@ -188,8 +188,8 @@ void cacheSim::set_associative(int assoc)
 		else if(found == false)
 		{
 			//not found, pop back oldest, insert at front
-			cache_line_index[index].pop_back();
-			cache_line_index[index].push_front(tag);
+			cache[cache_line_index].pop_back();
+			cache[cache_line_index].push_front(tag);
 		}
 	}
 
@@ -270,64 +270,32 @@ void cacheSim::fully_associative_LRU()
 void cacheSim::fully_associative_HotCold()
 {
 	unsigned long long hits = 0;
-	unsigned long long tag = 0;
-	int num_blocks = ((16384/32)); //cache size / block size = # 512 cache lines/blocks
-	unsigned long long **cache = new unsigned long long *[1];
-	unsigned long long **LRU = new unsigned long long *[1];
-
-	for(int i = 0; i < 1; i++)
+	int cacheSize = 16384;
+	int block_size = 32;
+	int cache_entries = (cacheSize / block_size); //512 
+	int index;
+	bool found;
+	unsigned long long tag = 0; 
+	vector<int> hotCold (cache_entries-1, 0);
+	vector<int> cache;  
+	/*
+	for(int i = 0; i < cacheSize; i++)
 	{
-		LRU[i] = new unsigned long long [num_blocks];
-		cache[i] = new unsigned long long [num_blocks];
-	} 
-
-	for(int i = 0; i < 1; i++)
-	{
-		for(int j = 0; j < 512; j++)
-		{
-			LRU[i][j] = j; 
-			cache[i][j] = -1; 
-		}
+		deque<unsigned long long int> line;
+		
+		for(int j = 0; j < assoc; j++)
+			line.push_back(0);
+		
+		cache.push_back(line);
 	}
 
 	for(unsigned long long i = 0; i < input.size(); i++) 
 	{
-		int index = 0;
-		bool found = false;
-		tag = input[i].address >> 5;
-
-		for(int i = 0; i < num_blocks; i++)
-		{	
-			if(cache[0][i] == tag){
-				found = true;
-				index = i;
-			}
-		}
-		if(found)
-		{
-			int LRUindex = -1;
-			for(int i = 0; i < num_blocks; i++)
-			{
-				if(LRU[0][i] == index)
-					LRUindex = i;
-			}
-			for(int i = 0; i < LRUindex; i++)
-				LRU[0][LRUindex-i] = LRU[0][(LRUindex-1)-i];
-
-			LRU[0][0] = index;
-			hits++;
-		}
-		else
-		{
-			unsigned long long temp = LRU[0][num_blocks-1];
-			for(int i = 0; i < num_blocks; i++)
-				LRU[0][num_blocks-i] = LRU[0][(num_blocks-1)-i];
-
-			LRU[0][0] = temp;
-			cache[0][LRU[0][0]] = tag;
-		}
+		index = (input[i].address >> 5) % (cacheSize);
+	    tag = input[i].address >> ((unsigned long long)(log2(cacheSize)) + 5)
 	}
 
+	*/
 	out_put temp;
     temp.cache_hits = hits;
     output.push_back(temp);
@@ -337,9 +305,65 @@ void cacheSim::fully_associative_HotCold()
 //then the missing line is not written into the cache, but instead is written directly to memory. 
 //Evaluate this design for the same configurations as in question SAC.
 
-void cacheSim::SAC_no_alloc_write_miss()
+void cacheSim::SAC_no_alloc_write_miss(int assoc)
 {
-	return;
+	int cache_line_index = 0; //set
+	int where_in_set = 0;
+	unsigned long long hits = 0;
+	bool found;
+	unsigned long long tag = 0;
+	int blockSize = 32 * assoc; //cache size / block size = cache lines/blocks
+	int cacheSize = 512 / assoc; 
+	vector< deque<unsigned long long int> > cache;  
+
+	for(int i = 0; i < cacheSize; i++)
+	{
+		deque<unsigned long long int> line;
+		
+		for(int j = 0; j < assoc; j++)
+			line.push_back(0);
+		
+		cache.push_back(line);
+	}
+
+	for(unsigned long long i = 0; i < input.size(); i++) 
+	{
+		cache_line_index = (input[i].address >> 5) % (cacheSize);
+	    tag = input[i].address >> ((unsigned long long)(log2(cacheSize)) + 5);
+
+	  
+	    found = false;
+	    for(int p = 0; p < assoc; p++)
+	    {
+	    	if(cache[cache_line_index][p] == tag)
+	    	{
+	    		//remove
+	        	cache[cache_line_index].erase(cache[cache_line_index].begin()+p);
+	        	//push to front of lru
+	        	cache[cache_line_index].push_front(tag);
+	        	found = true;
+			}
+		}
+		if(found == true)
+		{
+			hits++;
+		}
+		else if(found == false)
+		{
+			//bypass if Write instruction
+			//0 is W, 1 is L
+			if(input[i].instr == 1) 
+			{
+			//pop back oldest, insert at front
+			cache[cache_line_index].pop_back();
+			cache[cache_line_index].push_front(tag);
+			}
+		}
+	}
+
+	out_put temp;
+    temp.cache_hits = hits;
+    output.push_back(temp);
 }
 
 //In this design, the next cache line will be brought into the cache with every cache access. 
@@ -352,7 +376,7 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 {
 	int index = 0; //set
 	int where_in_set = 0;
-	int hits = 0;
+	unsigned long long hits = 0;
 	bool found;
 	unsigned long long tag = 0;
 	int blockSize = 32 * assoc; //cache size / block size = cache lines/blocks
@@ -373,16 +397,18 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 	{
 		index = (input[i].address >> 5) % (cacheSize);
 	    tag = input[i].address >> ((unsigned long long)(log2(cacheSize)) + 5);
+	    
 	    unsigned long long nextAddress = input[i].address + 32;
 	    int nextIndex = (nextAddress >> 5) % (cacheSize);
 	    unsigned long long nextTag = nextAddress >> ((unsigned long long)(log2(cacheSize)) + 5);
+	    
 	    bool found = false;
 
-	    for(int i = 0; i < assoc; i++)
+	    for(int p = 0; p < assoc; p++)
 	    {
-	    	if(cache[index][i] == tag)
+	    	if(cache[index][p] == tag)
 	    	{
-	    		cache[index].erase( cache[index].begin() + i);
+	    		cache[index].erase( cache[index].begin() + p);
 	    		cache[index].push_front(tag);
 	    	}
 	    }
@@ -395,11 +421,11 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 
 	    //start again with next prefetched
 	    found = false;
-	    for(int i = 0; i < assoc; i++)
+	    for(int m = 0; m < assoc; m++)
 	    {
-	    	if(cache[nextIndex][i] == nextTag)
+	    	if(cache[nextIndex][m] == nextTag)
 	    	{
-	    		cache[nextIndex].erase( cache[nextIndex].begin() + i);
+	    		cache[nextIndex].erase( cache[nextIndex].begin() + m );
 	    		cache[nextIndex].push_front(nextTag);
 	    	}
 	    }
@@ -410,13 +436,27 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 	    		cache[nextIndex].push_front(nextTag);
 	    }
 	}
+
+	out_put temp;
+    temp.cache_hits = hits;
+    output.push_back(temp);
 }
 
 //Similar to next-line prefetching above, but prefetching is only triggered on a cache miss.
 
 void cacheSim::prefetch_on_a_miss()
 {
-	return;
+	int index = 0; //set
+	int where_in_set = 0;
+	unsigned long long hits = 0;
+	bool found;
+	unsigned long long tag = 0;
+
+	vector< deque<unsigned long long int> > cache;  
+	
+	out_put temp;
+    temp.cache_hits = hits;
+    output.push_back(temp);
 }
 
 int main(int argc, char **argv)
@@ -428,21 +468,21 @@ int main(int argc, char **argv)
 
 	cacheSim sim; //initialize object
 	cout << "This may take a bit...\n";
-	
+
 	sim.read_file(argv[1]);
 
 	int DMSize[4] = {1024, 4096, 16384, 32768}; //1KB 4KB 16KB 32KB 
 	int SACAssociativity[4] = {2, 4, 8, 16};
 
 	for(int i = 0; i < 4; i++)
-		sim.direct_mapped(DMSize[i]);
+		sim.direct_mapped(DMSize[i]); //correct
 
 	for(int i = 0; i < 4; i++)
-		sim.set_associative(SACAssociativity[i]);
+		sim.set_associative(SACAssociativity[i]); //correct
 
-	sim.fully_associative_LRU();
+	sim.fully_associative_LRU(); //correct
 
-	//sim.fully_associative_HotCold();
+	sim.fully_associative_HotCold();
 
 	for(int i = 0; i < 4; i++)
 		sim.SAC_no_alloc_write_miss(SACAssociativity[i]);
