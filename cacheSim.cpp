@@ -45,7 +45,7 @@ class cacheSim
 		void SAC_no_alloc_write_miss(int assoc);
 		void SAC_nextline_prefetch(int assoc);
 		
-		void prefetch_on_a_miss();
+		void SAC_prefetch_on_a_miss(int assoc);
 };
 
 void cacheSim::read_file(string filename) //trace input
@@ -344,6 +344,7 @@ void cacheSim::SAC_no_alloc_write_miss(int assoc)
 	        	found = true;
 			}
 		}
+
 		if(found == true)
 		{
 			hits++;
@@ -410,6 +411,7 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 	    	{
 	    		cache[index].erase( cache[index].begin() + p);
 	    		cache[index].push_front(tag);
+	    		found = true;
 	    	}
 	    }
 	    if(found) hits++;
@@ -427,10 +429,10 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 	    	{
 	    		cache[nextIndex].erase( cache[nextIndex].begin() + m );
 	    		cache[nextIndex].push_front(nextTag);
+	    		found = true;
 	    	}
 	    }
-	    if(found) hits++;
-	    else if(found == false)
+	    if(found == false)
 	    {
 	    		cache[nextIndex].pop_back();
 	    		cache[nextIndex].push_front(nextTag);
@@ -444,16 +446,68 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 
 //Similar to next-line prefetching above, but prefetching is only triggered on a cache miss.
 
-void cacheSim::prefetch_on_a_miss()
+void cacheSim::SAC_prefetch_on_a_miss(int assoc)
 {
 	int index = 0; //set
 	int where_in_set = 0;
 	unsigned long long hits = 0;
 	bool found;
 	unsigned long long tag = 0;
-
+	int blockSize = 32 * assoc; //cache size / block size = cache lines/blocks
+	int cacheSize = 512 / assoc; 
 	vector< deque<unsigned long long int> > cache;  
-	
+
+	for(int i = 0; i < cacheSize; i++)
+	{
+		deque<unsigned long long int> line;
+		
+		for(int j = 0; j < assoc; j++)
+			line.push_back(0);
+		
+		cache.push_back(line);
+	}
+
+	for(unsigned long long i = 0; i < input.size(); i++) 
+	{
+		index = (input[i].address >> 5) % (cacheSize);
+	    tag = input[i].address >> ((unsigned long long)(log2(cacheSize)) + 5);
+	    bool found = false;
+
+	    unsigned long long nextAddress = input[i].address + 32;
+	    int nextIndex = (nextAddress >> 5) % (cacheSize);
+	    unsigned long long nextTag = nextAddress >> ((unsigned long long)(log2(cacheSize)) + 5);
+
+	    for(int p = 0; p < assoc; p++)
+	    {
+	    	if(cache[index][p] == tag)
+	    	{
+	    		cache[index].erase( cache[index].begin() + p);
+	    		cache[index].push_front(tag);
+	    		found = true;
+	    	}
+	    }
+	    if(found) hits++;
+	    else if(found == false)
+	    {
+    		cache[index].pop_back();
+    		cache[index].push_front(tag);
+
+    		for(int m = 0; m < assoc; m++)
+    		{
+    			if(cache[nextIndex][m] == nextTag){
+    				cache[nextIndex].erase(cache[nextIndex].begin() +m);
+    				cache[nextIndex].push_front(nextTag);
+    				found = true;
+    			}
+    		}
+    		if(found == false){
+    			cache[nextIndex].pop_back();
+    			cache[nextIndex].push_front(nextTag);
+    		}
+	    }
+
+	}
+
 	out_put temp;
     temp.cache_hits = hits;
     output.push_back(temp);
@@ -467,7 +521,7 @@ int main(int argc, char **argv)
 	}
 
 	cacheSim sim; //initialize object
-	cout << "This may take a bit...\n";
+	cout << "Processing...\n";
 
 	sim.read_file(argv[1]);
 
@@ -489,8 +543,9 @@ int main(int argc, char **argv)
 
 	for(int i = 0; i < 4; i++)
 		sim.SAC_nextline_prefetch(SACAssociativity[i]);
+	for(int i = 0; i < 4; i++)
+		sim.SAC_prefetch_on_a_miss(SACAssociativity[i]);
 
-	sim.prefetch_on_a_miss();
 
 	sim.write_file(argv[2]);
 
