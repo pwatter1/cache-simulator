@@ -107,6 +107,8 @@ void cacheSim::write_file(string filename) //output.txt
 //Assume that each cache line (block) has a size of 32 bytes 
 //and model the caches sized at 1KB, 4KB, 16KB and 32KB
 
+//Each block can only go into one line
+
 void cacheSim::direct_mapped(int modelSize)
 {	
 	int cache_line_index = 0; //which line
@@ -114,7 +116,7 @@ void cacheSim::direct_mapped(int modelSize)
 	int offset = 5;
 	bool found;
 	unsigned long long tag = 0;
-	int cacheSize = modelSize / 32;
+	int cacheSize = modelSize / 32; //number of blocks
 	unsigned long long index_bits = log2(cacheSize);
 	unsigned long long *cache = new unsigned long long[cacheSize]; 
 	
@@ -143,7 +145,7 @@ void cacheSim::direct_mapped(int modelSize)
 
 void cacheSim::set_associative(int assoc)
 {
-	int cache_line_index = 0; //which set
+	int set_index = 0; //which set
 	int hits = 0;
 	int offset = 5;
 	bool found;
@@ -165,18 +167,17 @@ void cacheSim::set_associative(int assoc)
 
 	for(unsigned long long i = 0; i < input.size(); i++) //loop through all memory instructions
 	{
-		 cache_line_index = (input[i].address >> 5) % (cacheSize);
+		 set_index = (input[i].address >> 5) % (cacheSize);
 	    tag = input[i].address >> ((unsigned long long)(index_bits + offset));
-
-	  
 	    found = false;
+
 	    for(int i = 0; i < assoc; i++) //loop through set, looking at each line
 	    {
-	    	if(cache[cache_line_index][i] == tag)
+	    	if(cache[set_index][i] == tag)
 	    	{
 	    		//move it to front of set to update LRU
-	        	cache[cache_line_index].erase( cache[cache_line_index].begin()+ i); 
-	        	cache[cache_line_index].push_front(tag);
+	        	cache[set_index].erase( cache[set_index].begin()+ i); 
+	        	cache[set_index].push_front(tag);
 	        	found = true;
 			}
 		}
@@ -187,8 +188,8 @@ void cacheSim::set_associative(int assoc)
 		else if(found == false)
 		{
 			//block replacement
-			cache[cache_line_index].pop_back(); //remove oldest
-			cache[cache_line_index].push_front(tag); //insert new tag at front
+			cache[set_index].pop_back(); //remove oldest
+			cache[set_index].push_front(tag); //insert new tag at front
 		}
 	}
 
@@ -200,6 +201,8 @@ void cacheSim::set_associative(int assoc)
 //Assume that each cache line is 32 bytes and the total cache size is 16KB. 
 //Implement Least Recently Used (LRU) and hot-cold LRU approximation policies.
 
+//Any block can go into any line
+
 void cacheSim::fully_associative_LRU()
 {
 	int cache_line_index = 0; //which line
@@ -207,7 +210,7 @@ void cacheSim::fully_associative_LRU()
 	int offset = 5;
 	bool found;
 	unsigned long long tag = 0;
-	int cacheSize = 1; //512 lines
+	int cacheSize = 1; //1 Set, 512 lines
 	unsigned long long index_bits = log2(cacheSize);
 	vector< deque<unsigned long long int> > cache;  
 	int assoc = 512; //refering to num lines in cache
@@ -227,7 +230,7 @@ void cacheSim::fully_associative_LRU()
 		
 		found = false;
 
-		for(int i = 0; i < assoc; i++) //loop through each line
+		for(int i = 0; i < assoc; i++) //loop through and evaluate all of the cache's entries
 		{
 			if(cache[cache_line_index][i] == tag)
 			{
@@ -250,8 +253,8 @@ void cacheSim::fully_associative_LRU()
 	}
 
 	out_put temp;
-    temp.cache_hits = hits;
-    output.push_back(temp);
+   temp.cache_hits = hits;
+   output.push_back(temp);
 }
 
 void cacheSim::fully_associative_HotCold()
@@ -280,7 +283,7 @@ void cacheSim::fully_associative_HotCold()
 
 void cacheSim::SAC_no_alloc_write_miss(int assoc)
 {
-	int cache_line_index = 0; //which set
+	int set_index = 0; //which set
 	int hits = 0;
 	int offset = 5;
 	bool found;
@@ -303,17 +306,17 @@ void cacheSim::SAC_no_alloc_write_miss(int assoc)
 
 	for(unsigned long long i = 0; i < input.size(); i++) //loop through all memory instructions
 	{
-		cache_line_index = (input[i].address >> 5) % (cacheSize);
+		set_index = (input[i].address >> 5) % (cacheSize);
 	   tag = input[i].address >> ((unsigned long long)(index_bits + offset)); 
 	   found = false;
 	  
 	    for(int p = 0; p < assoc; p++) //loop through set, looking at each line
 	    {
-	    	if(cache[cache_line_index][p] == tag)
+	    	if(cache[set_index][p] == tag)
 	    	{
 	    		//move it to front of set to update LRU
-	        	cache[cache_line_index].erase( cache[cache_line_index].begin() + p); 
-	        	cache[cache_line_index].push_front(tag); 
+	        	cache[set_index].erase( cache[set_index].begin() + p); 
+	        	cache[set_index].push_front(tag); 
 	        	found = true;
 			}
 		}
@@ -323,13 +326,13 @@ void cacheSim::SAC_no_alloc_write_miss(int assoc)
 		{
 			//bypass if write instruction
 			//if a write missed, then it is "written to memory"
-			//only write to cache if load instruction
+			//only write to our cache if load instruction
 			//0 is W, 1 is L
 			if(input[i].instr == 1) 
 			{
 				//block replacement
-				cache[cache_line_index].pop_back(); //remove oldest
-				cache[cache_line_index].push_front(tag); 
+				cache[set_index].pop_back(); //remove oldest
+				cache[set_index].push_front(tag); 
 			}
 		}
 	}
@@ -347,7 +350,7 @@ void cacheSim::SAC_no_alloc_write_miss(int assoc)
 
 void cacheSim::SAC_nextline_prefetch(int assoc)
 {
-	int cache_line_index = 0; //which set
+	int set_index = 0; //which set
 	int hits = 0;
 	int offset = 5;
 	bool found;
@@ -370,7 +373,7 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 
 	for(unsigned long long i = 0; i < input.size(); i++) //loop through all memory instructions
 	{
-		 cache_line_index = (input[i].address >> 5) % (cacheSize);
+		 set_index = (input[i].address >> 5) % (cacheSize);
 	    tag = input[i].address >> ((unsigned long long)(index_bits + offset));
 	    
 	    unsigned long long nextAddress = input[i].address + 32;
@@ -382,20 +385,20 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 
 	    for(int p = 0; p < assoc; p++) //loop through the set, looking at each line
 	    {
-	    	if(cache[cache_line_index][p] == tag) 
+	    	if(cache[set_index][p] == tag) 
 	    	{	
 	    		found = true;
 	    		//move it to front of set to update LRU
-	    		cache[cache_line_index].erase( cache[cache_line_index].begin() + p);  
-	    		cache[cache_line_index].push_front(tag); 
+	    		cache[set_index].erase( cache[set_index].begin() + p);  
+	    		cache[set_index].push_front(tag); 
 	    	}
 	    }
 	    if(found) hits++;
 	    else if(found == false)
 	    {
 	    		//block replacement
-	    		cache[cache_line_index].pop_back(); //remove oldest
-	    		cache[cache_line_index].push_front(tag); //push to front of set
+	    		cache[set_index].pop_back(); //remove oldest
+	    		cache[set_index].push_front(tag); //push to front of set
 	    }
 
 	    //start again with next instruction prefetched
@@ -411,7 +414,7 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 	    		found = true;
 	    	}
 	    }
-	    //next line is brought into cache if not already in
+	    //next line is brought into cache only if not already in
 	    //these are not actual program accesses so dont record hits
 	    if(found == false)
 	    {
@@ -430,7 +433,7 @@ void cacheSim::SAC_nextline_prefetch(int assoc)
 
 void cacheSim::SAC_prefetch_on_a_miss(int assoc)
 {
-	int cache_line_index = 0; //which set
+	int set_index = 0; //which set
 	int hits = 0;
 	int offset = 5;
 	bool found;
@@ -453,7 +456,7 @@ void cacheSim::SAC_prefetch_on_a_miss(int assoc)
 
 	for(unsigned long long i = 0; i < input.size(); i++) //loop through all memory instructions
 	{
-		 cache_line_index = (input[i].address >> 5) % (cacheSize);
+		 set_index = (input[i].address >> 5) % (cacheSize);
 	    tag = input[i].address >> ((unsigned long long)(index_bits + offset)); //5 for offset
 
 	    //get next instruction for the case of a cache miss, where we'd prefetch
@@ -465,11 +468,11 @@ void cacheSim::SAC_prefetch_on_a_miss(int assoc)
 
 	    for(int p = 0; p < assoc; p++) //loop through sets, looking at each line
 	    {
-	    	if(cache[cache_line_index][p] == tag)
+	    	if(cache[set_index][p] == tag)
 	    	{
 	    		//move to front of set to update LRU
-	    		cache[cache_line_index].erase( cache[cache_line_index].begin() + p); 
-	    		cache[cache_line_index].push_front(tag); 
+	    		cache[set_index].erase( cache[set_index].begin() + p); 
+	    		cache[set_index].push_front(tag); 
 	    		found = true;
 	    	}
 	    }
@@ -477,8 +480,8 @@ void cacheSim::SAC_prefetch_on_a_miss(int assoc)
 	    else if(found == false) //cache miss, triggers next line prefetch
 	    {
 	    	//block replacement
-    		cache[cache_line_index].pop_back(); //remove oldest
-    		cache[cache_line_index].push_front(tag); 
+    		cache[set_index].pop_back(); //remove oldest
+    		cache[set_index].push_front(tag); 
 
     		for(int m = 0; m < assoc; m++)
     		{
@@ -507,7 +510,7 @@ void cacheSim::SAC_prefetch_on_a_miss(int assoc)
 int main(int argc, char **argv)
 {
 	if(argc != 3){ 
-		cerr << "Accepts only three files: ./cache-sim input.txt output.txt\n";
+		cerr << "Accepts only three files: ./cache-sim input.txt output.txt" << endl;
 		exit(1);
 	}
 
